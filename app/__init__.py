@@ -44,7 +44,12 @@ def create_app(config_name=None):
 
     # 4. Register Blueprints
     from app.routes.main import main_bp
+    from app.routes.students import students_bp
+    from app.routes.attendance import attendance_bp
+
     app.register_blueprint(main_bp)
+    app.register_blueprint(students_bp)
+    app.register_blueprint(attendance_bp)
 
     # 5. Register Error Handlers
     register_error_handlers(app)
@@ -58,12 +63,14 @@ def create_app(config_name=None):
     def make_shell_context():
         from app.models import Student, AttendanceRecord, AttendanceStatus
         from app import crud
+        from app.services import calculate_attendance_summary
         return {
             "db": db,
             "Student": Student,
             "AttendanceRecord": AttendanceRecord,
             "AttendanceStatus": AttendanceStatus,
             "crud": crud,
+            "calculate_attendance_summary": calculate_attendance_summary,
         }
 
     return app

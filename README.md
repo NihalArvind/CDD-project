@@ -13,22 +13,32 @@ CDD_project/
 ├── app/
 │   ├── __init__.py           # Application Factory (create_app) & CLI registration
 │   ├── extensions.py         # SQLAlchemy instance & SQLite PRAGMA listeners
-│   ├── models.py             # Core SQLAlchemy models (Student, AttendanceRecord)
-│   ├── models/               # Modular model exports (MVC Model)
-│   │   └── __init__.py       # Re-exports Student, AttendanceRecord, AttendanceStatus
+│   ├── models/               # Core SQLAlchemy models (Student, AttendanceRecord)
+│   │   └── __init__.py       # Student, AttendanceRecord, AttendanceStatus
 │   ├── crud.py               # CRUD query utilities & business logic helpers
 │   ├── commands.py           # Custom Flask CLI commands (flask init-db, flask seed-db)
+│   ├── services/             # Dedicated domain service functions
+│   │   ├── __init__.py
+│   │   └── attendance_service.py # calculate_attendance_summary & shortage metrics
 │   ├── routes/               # Blueprints & controllers (MVC Controller)
 │   │   ├── __init__.py
-│   │   └── main.py           # Root ('/') and health check ('/health') routes
+│   │   ├── main.py           # Root ('/') and health check ('/health') routes
+│   │   ├── students.py       # Student management routes (/students, /students/add, /students/<id>/delete)
+│   │   └── attendance.py     # Attendance & reporting routes (/attendance/mark, /reports)
 │   ├── static/               # Static assets
 │   │   ├── css/
 │   │   │   └── style.css     # Global custom styles
 │   │   └── js/
 │   │       └── main.js       # Client-side scripts
 │   └── templates/            # Jinja2 presentation templates (MVC View)
-│       ├── base.html         # Bootstrap 5 layout skeleton & navbar
+│       ├── base.html         # Bootstrap 5 layout skeleton, alerts & navbar
 │       ├── index.html        # Landing page & status dashboard
+│       ├── students/
+│       │   └── index.html    # Student directory & registration modal
+│       ├── attendance/
+│       │   └── mark.html     # Daily attendance roster & bulk marking sheet
+│       ├── reports/
+│       │   └── index.html    # Class summary KPIs & sortable metrics report
 │       └── errors/
 │           ├── 404.html      # 404 Not Found page
 │           └── 500.html      # 500 Internal Server Error page
@@ -37,7 +47,8 @@ CDD_project/
 │   ├── __init__.py
 │   ├── conftest.py           # Pytest fixtures and app factory config
 │   ├── test_health.py        # Baseline health check unit tests
-│   └── test_database.py      # Database models, constraints, CRUD & CLI tests
+│   ├── test_database.py      # Database models, constraints, CRUD & CLI tests
+│   └── test_phase3_endpoints.py # Phase 3 routes, transactions, calculations & reports
 ├── .env.example              # Environment variables template
 ├── .gitignore                # Git exclusions (pycache, .venv, sqlite db, .env)
 ├── config.py                 # 12-factor configuration (Dev, Test, Prod)
@@ -83,6 +94,34 @@ This populates 8 realistic engineering students across departments (CSE, ISE, EC
 
 ---
 
+## 🚦 Phase 3: RESTful Routing, Attendance Business Logic & Reporting
+
+Phase 3 introduces dedicated modular Blueprints, atomic bulk attendance tracking, and class-wide shortage analytics.
+
+### 1. Student Management Endpoints (`app/routes/students.py`)
+- **`GET /students`**: Lists all enrolled students ordered alphabetically by USN. Supports Jinja2 HTML rendering and JSON API clients (`Accept: application/json`).
+- **`POST /students/add`**: Registers a new student via HTML form data or JSON payload. Verifies USN & Email uniqueness, validates semester (1–8), and renders dismissible Flask flash alerts.
+- **`POST /students/<int:id>/delete`**: Deletes a student and cascades deletion to all their associated attendance records with transaction safety.
+
+### 2. Daily Attendance Endpoints (`app/routes/attendance.py`)
+- **`GET /attendance/mark`**: Renders the daily attendance marking sheet for a chosen date (defaults to today's date). Loads all enrolled students and pre-fills existing attendance statuses if records for that date were already submitted.
+- **`POST /attendance/mark`**: Handles bulk submission of attendance statuses (`Present` / `Absent`). Uses an atomic database transaction (`db.session.commit()` / `db.session.rollback()`) to safely upsert student attendance without constraint conflicts.
+
+### 3. Metrics & Reporting Logic (`app/services/attendance_service.py`)
+- **Dedicated Service Function**: `calculate_attendance_summary(student_id=None)`:
+  - **Total classes held**: Distinct calendar dates recorded in `AttendanceRecord`.
+  - **Total classes attended**: Records with status `Present`.
+  - **Attendance percentage**: `(Classes Present / Total Classes Held) * 100`.
+  - **Shortage indicator flag**: Boolean `is_shortage` set to `True` if attendance percentage < 75.0%.
+  - **Graceful fallback**: Returns `0.0%` (and prevents `ZeroDivisionError`) when total classes held is 0.
+- **`GET /reports`**: Generates class-wide attendance summary cards and roster with dynamic sorting:
+  - `?sort=lowest`: Sort by lowest attendance first (default for identifying students needing attendance interventions).
+  - `?sort=highest`: Sort by highest attendance first.
+  - `?sort=usn`: Sort alphabetically by USN.
+  - `?sort=shortage`: Prioritizes students with shortage (<75%) at the top of the roster.
+
+---
+
 ## 🛠️ CRUD Query Helper Utilities (`app/crud.py`)
 
 The `app.crud` module provides high-performance, modular query functions:
@@ -95,6 +134,7 @@ from app.crud import (
     get_student_attendance_history,
     record_attendance,
     get_student_attendance_summary,
+    calculate_attendance_summary,
 )
 
 # 1. Fetch all students sorted alphabetically by USN
@@ -109,9 +149,8 @@ student, history = get_student_attendance_history("1MS21CS001")
 # 4. Record or update attendance idempotently
 record = record_attendance("1MS21CS001", date.today(), status="Present")
 
-# 5. Get student metrics (total classes, present count, percentage)
-summary = get_student_attendance_summary("1MS21CS001")
-print(summary["attendance_percentage"])
+# 5. Calculate class-wide metrics and shortages
+summary = calculate_attendance_summary()
 ```
 
 ---
@@ -130,12 +169,6 @@ cd CDD_project
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-```
-
-**On Windows (Command Prompt - CMD):**
-```cmd
-python -m venv .venv
-.\.venv\Scripts\activate.bat
 ```
 
 **On Linux / macOS:**
@@ -172,6 +205,9 @@ python wsgi.py
 
 Navigate to:
 - **Dashboard:** [http://localhost:5000/](http://localhost:5000/)
+- **Student Management:** [http://localhost:5000/students](http://localhost:5000/students)
+- **Daily Attendance:** [http://localhost:5000/attendance/mark](http://localhost:5000/attendance/mark)
+- **Attendance Reports:** [http://localhost:5000/reports](http://localhost:5000/reports)
 - **Health Check API:** [http://localhost:5000/health](http://localhost:5000/health)
 
 ---
@@ -180,10 +216,12 @@ Navigate to:
 ```bash
 pytest
 ```
-Runs tests covering:
+Runs 32 unit and integration tests covering:
 - Baseline health check routes
 - Student creation and uniqueness checks
 - Foreign key relations and cascade deletion
 - Composite unique constraint `(student_id, date)`
-- CRUD helper functions
-- Flask CLI commands (`init-db` and `seed-db`)
+- Phase 3 routing handlers (`/students`, `/attendance/mark`, `/reports`)
+- Bulk atomic attendance upserts and rollback safety
+- Metrics service calculation and shortage detection
+- CLI commands (`init-db` and `seed-db`)

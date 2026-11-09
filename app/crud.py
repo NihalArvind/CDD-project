@@ -224,3 +224,7 @@ def get_student_attendance_summary(usn: str) -> Optional[dict]:
         "absent_count": absent_count,
         "attendance_percentage": percentage,
     }
+
+
+# Service helper re-export for Phase 3 metrics calculation
+from app.services.attendance_service import calculate_attendance_summary

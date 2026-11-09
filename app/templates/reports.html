@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance Reports &amp; Analytics | AttendSync{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Header with Export Controls -->
+    <div class="col-12 pb-2 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-bar-chart-line-fill text-primary"></i>
+                Attendance Summary &amp; Metrics
+            </h2>
+            <p class="text-muted mb-0 small">
+                Semester attendance summaries, distinct lecture counts, and institutional shortage tracking (&lt;75% threshold).
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Prominent Export as CSV Button -->
+            <button type="button" class="btn btn-outline-success d-flex align-items-center gap-2 shadow-sm"
+                    onclick="exportTableToCSV('reportsRosterTable', 'attendsync_class_report.csv');">
+                <i class="bi bi-file-earmark-spreadsheet-fill fs-5"></i>
+                <span>Export as CSV</span>
+            </button>
+            <button type="button" class="btn btn-outline-secondary d-flex align-items-center gap-1" onclick="window.print();" title="Print Report">
+                <i class="bi bi-printer"></i> Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Diagnostic Summary Cards -->
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-primary h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Enrolled Students</div>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ total_students|default(summaries|length) }}</h3>
+                    </div>
+                    <div class="stat-icon bg-primary-subtle text-primary fs-3">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-info h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Classes Conducted</div>
+                        <h3 class="fw-bold text-dark mb-0 mt-1">{{ total_classes_held }}</h3>
+                    </div>
+                    <div class="stat-icon bg-info-subtle text-info fs-3">
+                        <i class="bi bi-calendar2-range-fill"></i>
+                    </div>
+                </div>
+                <div class="text-muted small mt-1">Distinct calendar dates</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-danger h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Attendance Shortage</div>
+                        <h3 class="fw-bold text-danger mb-0 mt-1">{{ shortage_count }}</h3>
+                    </div>
+                    <div class="stat-icon bg-danger-subtle text-danger fs-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                </div>
+                <div class="text-danger small mt-1">Students below 75% limit</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 border-start border-4 border-success h-100">
+            <div class="card-body p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Class Average</div>
+                        <h3 class="fw-bold text-success mb-0 mt-1">{{ avg_percentage }}%</h3>
+                    </div>
+                    <div class="stat-icon bg-success-subtle text-success fs-3">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                </div>
+                <div class="text-muted small mt-1">Overall presence rate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Sort Toolbar -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-3">
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-6 col-lg-5">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="reportSearchInput" class="form-control border-start-0 ps-0"
+                                   placeholder="Filter roster by USN or Name..."
+                                   onkeyup="filterTable('reportSearchInput', 'reportsRosterTable');">
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-7 d-flex justify-content-md-end align-items-center gap-2">
+                        <span class="text-muted small fw-semibold text-nowrap"><i class="bi bi-funnel me-1"></i>Sort Roster:</span>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Sort options">
+                            <a href="{{ url_for('attendance.reports', sort='lowest') }}"
+                               class="btn {% if current_sort in ['lowest', 'asc', 'attendance_asc'] %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                               title="Sort by Lowest Attendance First">
+                                <i class="bi bi-sort-numeric-down me-1"></i> Lowest First
+                            </a>
+                            <a href="{{ url_for('attendance.reports', sort='highest') }}"
+                               class="btn {% if current_sort in ['highest', 'desc', 'attendance_desc'] %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                               title="Sort by Highest Attendance First">
+                                <i class="bi bi-sort-numeric-up-alt me-1"></i> Highest First
+                            </a>
+                            <a href="{{ url_for('attendance.reports', sort='usn') }}"
+                               class="btn {% if current_sort in ['usn', 'usn_asc'] %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                               title="Sort by USN">
+                                <i class="bi bi-sort-alpha-down me-1"></i> USN
+                            </a>
+                            <a href="{{ url_for('attendance.reports', sort='shortage') }}"
+                               class="btn {% if current_sort in ['shortage', 'shortage_first'] %}btn-danger{% else %}btn-outline-secondary{% endif %}"
+                               title="Show Shortage Students First">
+                                <i class="bi bi-exclamation-octagon me-1"></i> Shortage First
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comprehensive Roster Table -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-table me-2 text-secondary"></i> Comprehensive Attendance Roster
+                </h5>
+                <span class="badge bg-secondary-subtle text-dark border">
+                    {{ summaries|length }} Students Evaluated
+                </span>
+            </div>
+            <div class="card-body p-0">
+                {% if summaries %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="reportsRosterTable">
+                        <thead class="table-light text-secondary text-uppercase small">
+                            <tr>
+                                <th scope="col" class="ps-4" style="width: 50px;">#</th>
+                                <th scope="col" style="width: 140px;">USN</th>
+                                <th scope="col">Student Name</th>
+                                <th scope="col">Department &amp; Sem</th>
+                                <th scope="col" class="text-center" style="width: 120px;">Classes Held</th>
+                                <th scope="col" class="text-center" style="width: 120px;">Classes Attended</th>
+                                <th scope="col" style="width: 220px;">Attendance %</th>
+                                <th scope="col" class="text-end pe-4" style="width: 180px;">Status Badge</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in summaries %}
+                            <tr class="{% if s.is_shortage %}table-danger-subtle{% endif %}">
+                                <td class="ps-4 text-muted small fw-semibold">{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark font-monospace border fs-6">
+                                        {{ s.usn }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ s.name }}</div>
+                                    <div class="text-muted small">{{ s.email }}</div>
+                                </td>
+                                <td>
+                                    <span class="text-secondary small">{{ s.department }}</span>
+                                    <span class="badge bg-light text-dark border ms-1">Sem {{ s.semester }}-{{ s.section }}</span>
+                                </td>
+                                <td class="text-center fw-semibold text-dark">{{ s.total_classes_held }}</td>
+                                <td class="text-center fw-bold text-success">{{ s.classes_attended }}</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height: 8px;">
+                                            <div class="progress-bar {% if s.is_shortage %}bg-danger{% else %}bg-success{% endif %}"
+                                                 role="progressbar"
+                                                 style="width: {{ s.attendance_percentage }}%;"
+                                                 aria-valuenow="{{ s.attendance_percentage }}"
+                                                 aria-valuemin="0"
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <span class="fw-bold small {% if s.is_shortage %}text-danger{% else %}text-success{% endif %}" style="min-width: 50px;">
+                                            {{ s.attendance_percentage }}%
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <!-- Visual Badges: Green for >= 75%, Red warning for < 75% -->
+                                    {% if s.is_shortage %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger px-3 py-2 fw-semibold">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i> Shortage (&lt;75%)
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success px-3 py-2 fw-semibold">
+                                        <i class="bi bi-check-circle-fill me-1"></i> Satisfactory (&ge;75%)
+                                    </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-file-earmark-bar-graph fs-1 text-muted"></i>
+                    <h5 class="mt-3 text-secondary">No Attendance Data Available</h5>
+                    <p class="text-muted small">Please record daily attendance sessions or run <code>flask seed-db</code>.</p>
+                    <a href="{{ url_for('attendance.mark_attendance') }}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-calendar2-check me-1"></i> Go to Mark Attendance
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

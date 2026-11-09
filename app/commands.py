@@ -101,7 +101,7 @@ def register_commands(app: Flask):
             click.echo("Dropped existing database tables.")
 
         db.create_all()
-        click.secho("✓ Database initialized successfully. All tables created.", fg="green", bold=True)
+        click.secho("[OK] Database initialized successfully. All tables created.", fg="green", bold=True)
 
     @app.cli.command("seed-db")
     def seed_db_command():
@@ -162,7 +162,7 @@ def register_commands(app: Flask):
         db.session.commit()
 
         click.echo("--------------------------------------------------")
-        click.secho("✓ AttendSync Database Seeding Completed!", fg="green", bold=True)
+        click.secho("[OK] AttendSync Database Seeding Completed!", fg="green", bold=True)
         click.echo(f"Students   : {added_students} inserted, {skipped_students} already existed")
         click.echo(f"Attendance : {added_records} records inserted, {skipped_records} already existed")
         click.echo("--------------------------------------------------")

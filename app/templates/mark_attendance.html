@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Mark Daily Attendance | AttendSync{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Top Date Selector & Session Bar -->
+    <div class="col-12 pb-2 border-bottom">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <h2 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar2-check-fill text-success"></i>
+                    Daily Attendance Register
+                </h2>
+                <p class="text-muted mb-0 small">
+                    Record daily class attendance. Changes are processed atomically with database rollback protection.
+                </p>
+            </div>
+
+            <!-- Date Selector Filter Form -->
+            <form action="{{ url_for('attendance.mark_attendance') }}" method="GET" class="d-flex align-items-center gap-2 bg-white p-2 rounded-3 shadow-sm border">
+                <label for="attendanceDateInput" class="fw-semibold small text-secondary text-nowrap mb-0 ps-1">
+                    <i class="bi bi-calendar3 me-1"></i> Lecture Date:
+                </label>
+                <input type="date" id="attendanceDateInput" name="date" class="form-control form-control-sm"
+                       value="{{ selected_date }}" style="width: 165px;" onchange="this.form.submit();">
+                <a href="{{ url_for('attendance.mark_attendance', date=today_date) }}" class="btn btn-outline-secondary btn-sm text-nowrap" title="Jump to Current Date">
+                    Today
+                </a>
+            </form>
+        </div>
+    </div>
+
+    <!-- Status Alert Banner for Chosen Date -->
+    <div class="col-12">
+        {% if has_existing_records %}
+        <div class="alert alert-info border-info-subtle shadow-sm d-flex align-items-center justify-content-between mb-0" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-info-circle-fill text-info fs-5"></i>
+                <div>
+                    <strong>Records Already Submitted for {{ selected_date }}:</strong>
+                    Existing marks are pre-filled below. Modifying statuses and clicking "Save Attendance" will update records in-place.
+                </div>
+            </div>
+            <span class="badge bg-info text-white">Pre-Filled</span>
+        </div>
+        {% else %}
+        <div class="alert alert-warning border-warning-subtle shadow-sm d-flex align-items-center justify-content-between mb-0" role="alert">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                <div>
+                    <strong>New Attendance Session for {{ selected_date }}:</strong>
+                    Default statuses are set to <em>Present</em>. Review the roster and click "Save Attendance" below to record.
+                </div>
+            </div>
+            <span class="badge bg-warning text-dark">Unsaved</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Attendance Form & Table Roster -->
+    <div class="col-12">
+        {% if students %}
+        <form action="{{ url_for('attendance.submit_attendance') }}" method="POST" id="dailyAttendanceForm">
+            <!-- Hidden target date binding for standard POST submission -->
+            <input type="hidden" name="date" value="{{ selected_date }}">
+
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white py-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="fw-bold mb-0 text-dark">
+                            <i class="bi bi-people me-2 text-secondary"></i> Student Roster ({{ students|length }} Enrolled)
+                        </h5>
+                    </div>
+
+                    <!-- Plain JavaScript Quick Toggle Controls -->
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm px-3 d-flex align-items-center gap-1"
+                                onclick="setAllAttendance('Present')">
+                            <i class="bi bi-check-all fs-6"></i> Mark All Present
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm px-3 d-flex align-items-center gap-1"
+                                onclick="setAllAttendance('Absent')">
+                            <i class="bi bi-x fs-6"></i> Mark All Absent
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light text-secondary text-uppercase small">
+                                <tr>
+                                    <th scope="col" class="ps-4" style="width: 70px;">Roll #</th>
+                                    <th scope="col" style="width: 140px;">USN</th>
+                                    <th scope="col">Student Name</th>
+                                    <th scope="col">Department &amp; Section</th>
+                                    <th scope="col" class="text-center" style="width: 240px;">Status (Present / Absent)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for s in students %}
+                                {% set current_status = attendance_map.get(s.id, 'Present') %}
+                                <tr>
+                                    <td class="ps-4 text-muted small fw-semibold">{{ loop.index }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-dark font-monospace border fs-6">
+                                            {{ s.usn }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-semibold text-dark">{{ s.name }}</div>
+                                        <div class="text-muted small">{{ s.email }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="text-secondary small">{{ s.department }}</span>
+                                        <span class="badge bg-light text-dark border ms-1">Sem {{ s.semester }}-{{ s.section }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <!-- Interactive Toggle Radio Buttons (Green Present / Red Absent) -->
+                                        <div class="btn-group w-100 attendance-toggle-group" role="group" aria-label="Attendance for {{ s.name }}">
+                                            <input type="radio" class="btn-check attendance-radio-present"
+                                                   name="status_{{ s.id }}" id="present_{{ s.id }}"
+                                                   value="Present" {% if current_status == 'Present' %}checked{% endif %}>
+                                            <label class="btn btn-outline-success btn-sm py-1 fw-semibold" for="present_{{ s.id }}">
+                                                <i class="bi bi-check-circle me-1"></i> Present
+                                            </label>
+
+                                            <input type="radio" class="btn-check attendance-radio-absent"
+                                                   name="status_{{ s.id }}" id="absent_{{ s.id }}"
+                                                   value="Absent" {% if current_status == 'Absent' %}checked{% endif %}>
+                                            <label class="btn btn-outline-danger btn-sm py-1 fw-semibold" for="absent_{{ s.id }}">
+                                                <i class="bi bi-x-circle me-1"></i> Absent
+                                            </label>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Footer with Prominent Submission Button -->
+                <div class="card-footer bg-light py-3 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+                    <div class="text-muted small">
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        Submitted entries are validated atomically. Conflicting records for this date are updated in-place.
+                    </div>
+                    <button type="submit" class="btn btn-success btn-lg px-4 py-2 fw-semibold shadow-sm d-flex align-items-center gap-2">
+                        <i class="bi bi-cloud-arrow-up-fill fs-5"></i>
+                        <span>Save Attendance</span>
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="card shadow-sm border-0 py-5 text-center">
+            <div class="card-body">
+                <i class="bi bi-people text-muted fs-1"></i>
+                <h5 class="mt-3 text-secondary">No Students Registered in System</h5>
+                <p class="text-muted small">Please register students first before taking daily attendance.</p>
+                <a href="{{ url_for('students.list_students') }}" class="btn btn-primary btn-sm">
+                    <i class="bi bi-person-plus me-1"></i> Go to Student Registration
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

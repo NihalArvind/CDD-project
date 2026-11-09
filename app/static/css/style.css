@@ -1,16 +1,100 @@
-/* AttendSync Custom Global Styles */
+/* ==============================================================================
+   AttendSync Modern Faculty-Friendly Stylesheet
+   Built for Bootstrap 5 & Jinja2 Templates
+   ============================================================================== */
 
 :root {
-    --as-primary: #0d6efd;
-    --as-success: #198754;
-    --as-bg: #f8f9fa;
+    --as-primary: #1e3a8a;       /* Deep Indigo */
+    --as-primary-light: #3b82f6; /* Modern Blue */
+    --as-secondary: #64748b;     /* Slate */
+    --as-success: #10b981;       /* Emerald Green */
+    --as-danger: #ef4444;        /* Crimson Red */
+    --as-warning: #f59e0b;       /* Amber */
+    --as-bg: #f8fafc;            /* Cool Light Background */
+    --as-card-bg: #ffffff;
+    --as-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #212529;
+    font-family: var(--as-font-family);
+    background-color: var(--as-bg);
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.01em;
 }
 
+/* Sticky Navigation Enhancement */
+.sticky-top {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1030;
+}
+
+.navbar-brand {
+    letter-spacing: -0.02em;
+}
+
+.nav-link {
+    font-weight: 500;
+    transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+
+.nav-link.active {
+    font-weight: 600;
+}
+
+/* Card Enhancements */
+.card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-radius: 0.75rem;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Stat KPI Icon Containers */
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.625rem;
+}
+
+/* Custom Attendance Radio Toggle Switch Styling */
+.attendance-toggle-group .btn-check:checked + .btn-outline-success {
+    background-color: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+    box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.25);
+}
+
+.attendance-toggle-group .btn-check:checked + .btn-outline-danger {
+    background-color: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 0 0.2rem rgba(239, 68, 68, 0.25);
+}
+
+/* Badge styles */
+.badge-shortage {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    font-weight: 600;
+}
+
+.badge-satisfactory {
+    background-color: #d1fae5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+    font-weight: 600;
+}
+
+/* Pulse Animation for Online Indicator */
 .animate-pulse {
     animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
@@ -20,6 +104,31 @@ body {
         opacity: 1;
     }
     50% {
-        opacity: 0.3;
+        opacity: 0.35;
+    }
+}
+
+/* Table Enhancements */
+.table th {
+    font-weight: 600;
+    font-size: 0.8125rem;
+    letter-spacing: 0.03em;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Print Layout Optimization */
+@media print {
+    .navbar, footer, .btn, .no-print {
+        display: none !important;
+    }
+    body {
+        background: #ffffff !important;
+    }
+    .card {
+        border: 1px solid #e2e8f0 !important;
+        box-shadow: none !important;
     }
 }

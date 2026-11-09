@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Student Management | AttendSync{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Page Header & Action Controls -->
+    <div class="col-12 pb-2 border-bottom d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-1 d-flex align-items-center gap-2">
+                <i class="bi bi-people-fill text-primary"></i>
+                Student Directory
+            </h2>
+            <p class="text-muted mb-0 small">
+                Manage registered engineering students, enroll new students, and search the institutional roster.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle fs-6 px-3 py-2" id="filterMatchCount">
+                <i class="bi bi-person-check me-1"></i> {{ students|length }} Enrolled
+            </span>
+            <button class="btn btn-primary d-flex align-items-center gap-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                <i class="bi bi-person-plus-fill"></i> Add Student
+            </button>
+        </div>
+    </div>
+
+    <!-- Live Search & Filter Bar -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-3">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-6 col-lg-8">
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" id="studentSearchInput" class="form-control border-start-0 ps-0"
+                                   placeholder="Search students by USN, Name, Email, or Department..."
+                                   onkeyup="filterTable('studentSearchInput', 'studentsTable');">
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4 text-md-end text-muted small">
+                        <i class="bi bi-info-circle me-1"></i> Real-time filter across all columns
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Roster Table -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-card-list me-2 text-secondary"></i> Enrolled Students
+                </h5>
+                <span class="text-muted small">Sorted alphabetically by USN</span>
+            </div>
+            <div class="card-body p-0">
+                {% if students %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="studentsTable">
+                        <thead class="table-light text-secondary text-uppercase small">
+                            <tr>
+                                <th scope="col" class="ps-4" style="width: 50px;">#</th>
+                                <th scope="col" style="width: 140px;">USN</th>
+                                <th scope="col">Student Name</th>
+                                <th scope="col">Email Address</th>
+                                <th scope="col">Department</th>
+                                <th scope="col" class="text-center" style="width: 100px;">Semester</th>
+                                <th scope="col" class="text-center" style="width: 90px;">Section</th>
+                                <th scope="col" class="text-end pe-4" style="width: 120px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr>
+                                <td class="ps-4 text-muted small fw-semibold">{{ loop.index }}</td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-dark font-monospace border fs-6">
+                                        {{ s.usn }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-dark">{{ s.name }}</div>
+                                </td>
+                                <td>
+                                    <a href="mailto:{{ s.email }}" class="text-muted text-decoration-none small">
+                                        <i class="bi bi-envelope me-1"></i>{{ s.email }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="text-secondary small">{{ s.department }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle">
+                                        Sem {{ s.semester }}
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-light text-dark border">
+                                        Sec {{ s.section }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <form action="{{ url_for('students.delete_student', id=s.id) }}" method="POST"
+                                          onsubmit="return confirm('Are you sure you want to delete {{ s.name }} ({{ s.usn }})? This action will permanently remove all associated attendance records.');"
+                                          class="d-inline">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Delete Student">
+                                            <i class="bi bi-trash3 me-1"></i> Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-person-x fs-1 text-muted"></i>
+                    <h5 class="mt-3 text-secondary">No Students Registered Yet</h5>
+                    <p class="text-muted small">Click "Add Student" above or seed sample data with <code>flask seed-db</code>.</p>
+                    <button class="btn btn-primary btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+                        <i class="bi bi-person-plus-fill me-1"></i> Register First Student
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Student Form -->
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <form action="{{ url_for('students.add_student') }}" method="POST" id="addStudentForm">
+                <div class="modal-header bg-primary text-white py-3">
+                    <h5 class="modal-title fw-bold" id="addStudentModalLabel">
+                        <i class="bi bi-person-plus-fill me-2"></i> Register New Student
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="modal_usn" class="form-label fw-semibold small">University Seat No (USN) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control font-monospace text-uppercase" id="modal_usn" name="usn"
+                                   placeholder="e.g. 1MS21CS001" pattern="^[0-9A-Za-z]{6,15}$"
+                                   title="USN must be 6-15 alphanumeric characters (e.g. 1MS21CS001)" required>
+                            <div class="form-text small">Must be unique across the institution.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modal_name" class="form-label fw-semibold small">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_name" name="name"
+                                   placeholder="e.g. Aarav Sharma" minlength="2" maxlength="100" required>
+                        </div>
+                        <div class="col-12">
+                            <label for="modal_email" class="form-label fw-semibold small">Institution Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="modal_email" name="email"
+                                   placeholder="e.g. aarav.cs21@college.edu" required>
+                            <div class="form-text small">Unique institutional email for notifications.</div>
+                        </div>
+                        <div class="col-12">
+                            <label for="modal_dept" class="form-label fw-semibold small">Academic Department <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal_dept" name="department"
+                                   placeholder="e.g. Computer Science & Engineering" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modal_sem" class="form-label fw-semibold small">Semester (1–8) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="modal_sem" name="semester"
+                                   min="1" max="8" value="6" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modal_sec" class="form-label fw-semibold small">Section <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="modal_sec" name="section"
+                                   placeholder="e.g. A" maxlength="5" value="A" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-3">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm">
+                        <i class="bi bi-check-lg me-1"></i> Register Student
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Automatically open Add Student modal if requested via URL query param (?open_add=true)
+document.addEventListener("DOMContentLoaded", function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("open_add") === "true") {
+        const modalEl = document.getElementById("addStudentModal");
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    }
+});
+</script>
+{% endblock %}

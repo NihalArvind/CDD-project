@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | AttendSync{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Welcome & System Status Banner -->
+    <div class="col-12">
+        <div class="p-4 p-md-5 bg-white rounded-3 shadow-sm border border-light-subtle">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success fs-6 border border-success-subtle px-3 py-2">
+                        <i class="bi bi-shield-check me-1"></i> {{ system_status|default('AttendSync System Online') }}
+                    </span>
+                    <span class="badge bg-primary-subtle text-primary fs-6 border border-primary-subtle px-3 py-2">
+                        Faculty Portal
+                    </span>
+                </div>
+                <div class="text-muted small">
+                    <i class="bi bi-clock me-1"></i> {{ timestamp|default('Live Session') }}
+                </div>
+            </div>
+
+            <h1 class="display-6 fw-bold text-dark mb-2">AttendSync</h1>
+            <p class="text-secondary fs-5 mb-4 col-lg-9">
+                Centralized academic attendance management system. Track daily course check-ins, monitor semester attendance shortages, and maintain reproducible classroom records.
+            </p>
+
+            <!-- Prominent Quick-Action Buttons -->
+            <div class="d-flex flex-wrap gap-3">
+                <a href="{{ url_for('attendance.mark_attendance', date=today_date) }}" class="btn btn-success btn-lg px-4 shadow-sm d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar-check-fill fs-5"></i>
+                    <span>Mark Today's Attendance</span>
+                </a>
+                <a href="{{ url_for('students.list_students', open_add='true') }}" class="btn btn-primary btn-lg px-4 shadow-sm d-flex align-items-center gap-2">
+                    <i class="bi bi-person-plus-fill fs-5"></i>
+                    <span>Add Student</span>
+                </a>
+                <a href="{{ url_for('attendance.reports') }}" class="btn btn-outline-secondary btn-lg px-4 d-flex align-items-center gap-2">
+                    <i class="bi bi-bar-chart-line fs-5"></i>
+                    <span>View Reports</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPI Stat Cards -->
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0 border-top border-4 border-primary card-hover">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Total Registered Students</div>
+                        <h2 class="display-5 fw-bold text-dark mt-2 mb-0">{{ total_students|default(0) }}</h2>
+                    </div>
+                    <div class="stat-icon bg-primary-subtle text-primary fs-3">
+                        <i class="bi bi-people-fill"></i>
+                    </div>
+                </div>
+                <p class="card-text text-muted small mb-3">
+                    Enrolled students across computer science and engineering disciplines.
+                </p>
+                <a href="{{ url_for('students.list_students') }}" class="text-primary text-decoration-none small fw-semibold">
+                    Manage Roster &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0 border-top border-4 border-info card-hover">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Total Classes Conducted</div>
+                        <h2 class="display-5 fw-bold text-dark mt-2 mb-0">{{ total_classes_held|default(0) }}</h2>
+                    </div>
+                    <div class="stat-icon bg-info-subtle text-info fs-3">
+                        <i class="bi bi-calendar2-range-fill"></i>
+                    </div>
+                </div>
+                <p class="card-text text-muted small mb-3">
+                    Distinct calendar dates with recorded lecture attendance sessions.
+                </p>
+                <a href="{{ url_for('attendance.mark_attendance') }}" class="text-info text-decoration-none small fw-semibold">
+                    Check Attendance Sheets &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm border-0 border-top border-4 border-danger card-hover">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <div class="text-muted small text-uppercase fw-semibold">Attendance Shortage (&lt;75%)</div>
+                        <h2 class="display-5 fw-bold text-danger mt-2 mb-0">{{ shortage_count|default(0) }}</h2>
+                    </div>
+                    <div class="stat-icon bg-danger-subtle text-danger fs-3">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                    </div>
+                </div>
+                <p class="card-text text-muted small mb-3">
+                    Students below the mandatory 75% institutional attendance threshold.
+                </p>
+                <a href="{{ url_for('attendance.reports', sort='shortage') }}" class="text-danger text-decoration-none small fw-semibold">
+                    View Shortage Report &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Navigation Shortcuts Card -->
+    <div class="col-12">
+        <div class="card shadow-sm border-0 bg-white">
+            <div class="card-header bg-white py-3 border-bottom">
+                <h5 class="fw-bold text-dark mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-grid-fill text-secondary"></i>
+                    Module Quick Access
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <h6 class="fw-bold text-dark"><i class="bi bi-person-lines-fill text-primary me-2"></i>Student Directory</h6>
+                            <p class="small text-muted mb-2">View complete student profiles, verify unique seat numbers (USN), and add new enrollments.</p>
+                            <a href="{{ url_for('students.list_students') }}" class="btn btn-sm btn-outline-primary">Open Students</a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <h6 class="fw-bold text-dark"><i class="bi bi-check2-circle text-success me-2"></i>Daily Register</h6>
+                            <p class="small text-muted mb-2">Select any lecture date, load historical records, and save changes atomically with rollback protection.</p>
+                            <a href="{{ url_for('attendance.mark_attendance') }}" class="btn btn-sm btn-outline-success">Mark Attendance</a>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded-3 border h-100">
+                            <h6 class="fw-bold text-dark"><i class="bi bi-file-earmark-spreadsheet text-warning me-2"></i>Class Reports</h6>
+                            <p class="small text-muted mb-2">Generate metrics summaries, sort by lowest attendance first, and export data as CSV.</p>
+                            <a href="{{ url_for('attendance.reports') }}" class="btn btn-sm btn-outline-warning text-dark">View Analytics</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
