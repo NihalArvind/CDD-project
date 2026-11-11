@@ -9,5 +9,8 @@ Flask-SQLAlchemy==3.1.1
 # Environment Configuration
 python-dotenv==1.0.1
 
+# Production WSGI Server
+gunicorn==22.0.0
+
 # Testing & Quality Assurance
 pytest==8.2.2

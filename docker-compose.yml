@@ -1,0 +1,38 @@
+# ==============================================================================
+# AttendSync Docker Compose Configuration (Development & Local Orchestration)
+# ==============================================================================
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attendsync_web
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - SECRET_KEY=attendsync-dev-container-secret-key-2026
+      - DATABASE_URL=sqlite:////app/instance/attendsync.db
+    volumes:
+      # Host directory bind mount for active development (live Python & template hot-reloading)
+      - .:/app
+      # Dedicated named volume for SQLite database persistence across container recreations
+      - sqlite_data:/app/instance
+    # Start with Flask development server for automatic code reloading
+    command: flask run --host=0.0.0.0 --port=5000 --reload
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  sqlite_data:
+    name: attendsync_sqlite_data
