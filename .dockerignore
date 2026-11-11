@@ -1,0 +1,53 @@
+# ==============================================================================
+# AttendSync .dockerignore
+# Prevents unneeded local files and secrets from entering build context
+# ==============================================================================
+
+# Git repository artifacts
+.git
+.gitignore
+.gitattributes
+
+# Python cache and compiled bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment files and credentials
+.env
+.env.*
+!.env.example
+
+# SQLite databases & transient instance files
+*.db
+*.sqlite
+*.sqlite3
+instance/*.db
+instance/*.sqlite
+instance/*.sqlite3
+tests/*.db
+
+# IDE, editor, and OS metadata
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
