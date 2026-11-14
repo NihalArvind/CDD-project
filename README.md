@@ -22,7 +22,7 @@ CDD-project/
 │   │   ├── __init__.py
 │   │   ├── main.py               # Root ('/') and health check ('/health') routes
 │   │   ├── students.py           # Student management (/students, /students/add, /students/<id>/delete)
-│   │   └── attendance.py         # Attendance & reports (/attendance/mark, /reports)
+│   │   └── attendance.py         # Attendance & reports (/attendance/mark, /reports, /reports/export)
 │   ├── static/                   # Static web assets
 │   │   ├── css/
 │   │   │   └── style.css         # Global responsive styles & theme enhancements
@@ -44,9 +44,10 @@ CDD-project/
 ├── scripts/                      # Automated deployment scripts
 │   ├── deploy.sh                 # Single-command Docker deployment for Linux/macOS
 │   └── deploy.ps1                # Single-command Docker deployment for Windows PowerShell
-├── tests/                        # Automated Pytest suite (37 tests)
+├── tests/                        # Automated Pytest suite (50 tests)
 │   ├── __init__.py
 │   ├── conftest.py               # Pytest fixtures and isolated app factory setup
+│   ├── test_attendance.py        # Student uniqueness, marking, composite unique constraint & CSV export
 │   ├── test_health.py            # Baseline health check & error handler tests
 │   ├── test_database.py          # Schema, uniqueness, cascade delete & CLI tests
 │   ├── test_phase3_endpoints.py  # RESTful routes, atomic upserts & shortage logic
@@ -110,6 +111,7 @@ flask seed-db
 - **Metrics & Reporting (`app/services/attendance_service.py`)**:
   - `calculate_attendance_summary(student_id=None)`: Calculates total classes held, classes attended, percentage attendance, and flags students below 75% attendance (`is_shortage=True`). Handles zero classes held gracefully without `ZeroDivisionError`.
   - `GET /reports`: Sortable roster by `?sort=lowest`, `?sort=highest`, `?sort=usn`, or `?sort=shortage`.
+  - `GET /reports/export`: Direct downloadable CSV streaming endpoint using Python's standard `csv` and `io.StringIO` modules with headers: `USN, Name, Total Classes, Attended Classes, Percentage, Status (Eligible / Shortage)`. Response includes `Content-Disposition: attachment; filename=attendance_report_<date>.csv`.
 
 ---
 
@@ -251,37 +253,60 @@ Once running (locally or via Docker), access the following endpoints:
 | **Students** | [http://localhost:5000/students](http://localhost:5000/students) | Student directory & registration modal |
 | **Mark Attendance** | [http://localhost:5000/attendance/mark](http://localhost:5000/attendance/mark) | Date-based bulk attendance sheet |
 | **Reports** | [http://localhost:5000/reports](http://localhost:5000/reports) | Attendance metrics & shortage alerts (<75%) |
+| **CSV Export** | [http://localhost:5000/reports/export](http://localhost:5000/reports/export) | Downloadable attendance summary CSV stream |
 | **Health API** | [http://localhost:5000/health](http://localhost:5000/health) | System & database health probe (`JSON`) |
 
 ---
 
 ## 🧪 Automated Testing Suite
 
-AttendSync features a comprehensive Pytest test suite with **37 passing tests** spanning all 5 phases:
+AttendSync features a comprehensive Pytest test suite with **50 passing tests** executed against an isolated in-memory SQLite database (`sqlite:///:memory:`):
 
+### Running Locally:
 ```bash
+# Run the complete test suite
 pytest -v
+
+# Run the attendance & CSV export test suite specifically
+pytest tests/test_attendance.py -v
+```
+
+### Running Inside Docker:
+```bash
+# Using Docker Compose
+docker compose run --rm web pytest -v
+docker compose run --rm web pytest tests/test_attendance.py -v
+
+# Or using standalone Docker container
+docker build -t attendsync:latest .
+docker run --rm attendsync:latest pytest tests/test_attendance.py -v
 ```
 
 ### Coverage Breakdown:
-1. **`tests/test_health.py`**:
+1. **`tests/test_attendance.py` (New)**:
+   - Student creation verification and duplicate USN uniqueness rejection (ORM `IntegrityError` & HTTP 400).
+   - Daily attendance marking updates and idempotent database upserts.
+   - Database-level composite unique constraint on `(student_id, date)` preventing duplicate marking.
+   - Percentage calculation accuracy across multiple attendance rates and graceful zero-classes division handling (`0.0%`).
+   - CSV export route (`/reports/export`) verification: HTTP 200, attachment headers, valid schema, and streamed data values.
+2. **`tests/test_health.py`**:
    - Health check endpoint verification (`/health`)
    - Root dashboard response (`/`)
    - Custom 404 error page handling for both HTML and JSON requests
-2. **`tests/test_database.py`**:
+3. **`tests/test_database.py`**:
    - Student model creation, USN uniqueness, and email uniqueness
    - Composite unique constraint on `(student_id, date)` preventing duplicate marking
    - Foreign key cascading deletion of attendance records
    - High-performance CRUD helpers (`get_all_students_sorted`, `record_attendance`, etc.)
    - Database initialization (`flask init-db`) and sample data seeding (`flask seed-db`)
-3. **`tests/test_phase3_endpoints.py`**:
+4. **`tests/test_phase3_endpoints.py`**:
    - Student listing and adding via HTML form and JSON API
    - Daily attendance sheet pre-filling for existing dates
    - Bulk atomic attendance upserts and transaction rollback protection
    - Attendance percentage calculations and shortage boundary checks ($\ge 75\%$ vs $< 75\%$)
    - Graceful fallback for 0 classes held
    - Dynamic report roster sorting (`?sort=lowest`, `?sort=highest`, `?sort=usn`, `?sort=shortage`)
-4. **`tests/test_phase4_ui.py`**:
+5. **`tests/test_phase4_ui.py`**:
    - Bootstrap 5 CDN integration, sticky navbar, and navigation links
    - Dashboard stat cards and action buttons
    - Students table, search filters, and modal inputs

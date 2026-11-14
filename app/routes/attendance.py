@@ -5,9 +5,11 @@ Handles daily attendance marking, idempotent bulk submissions with atomic transa
 and class-wide attendance summary reports with dynamic sorting and shortage indicators.
 """
 
+import csv
 from datetime import date, datetime
+import io
 from typing import Dict, List, Optional
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, stream_with_context, url_for
 from app.extensions import db
 from app.models import AttendanceRecord, AttendanceStatus, Student
 from app.services.attendance_service import calculate_attendance_summary
@@ -284,4 +286,90 @@ def reports():
         total_students=total_students,
         avg_percentage=avg_percentage,
         current_sort=sort_param
+    )
+
+
+@attendance_bp.route("/reports/export", methods=["GET"])
+@attendance_bp.route("/attendance/reports/export", methods=["GET"])
+def export_attendance_csv():
+    """
+    GET /reports/export
+    Queries the attendance summary table and streams a downloadable .csv file directly to the browser.
+
+    Headers:
+        USN, Name, Total Classes, Attended Classes, Percentage, Status (Eligible / Shortage)
+
+    Response Headers:
+        Content-Disposition: attachment; filename=attendance_report_<date>.csv
+        Content-Type: text/csv; charset=utf-8
+    """
+    # 1. Fetch attendance summaries
+    summaries = calculate_attendance_summary(student_id=None)
+
+    # 2. Support optional sort parameter matching the reports view
+    sort_param = request.args.get("sort", "usn").lower().strip()
+    if sort_param in {"lowest", "asc", "attendance_asc"}:
+        summaries.sort(key=lambda x: (x["attendance_percentage"], x["usn"]))
+    elif sort_param in {"highest", "desc", "attendance_desc"}:
+        summaries.sort(key=lambda x: (-x["attendance_percentage"], x["usn"]))
+    elif sort_param in {"name", "name_asc"}:
+        summaries.sort(key=lambda x: x["name"].lower())
+    elif sort_param in {"shortage", "shortage_first"}:
+        summaries.sort(key=lambda x: (not x["is_shortage"], x["attendance_percentage"]))
+    else:
+        summaries.sort(key=lambda x: x["usn"])
+
+    # 3. Determine report date for filename
+    date_arg = request.args.get("date")
+    if date_arg and date_arg.strip():
+        try:
+            report_date = datetime.strptime(date_arg.strip(), "%Y-%m-%d").date().isoformat()
+        except (ValueError, TypeError):
+            report_date = date.today().isoformat()
+    else:
+        report_date = date.today().isoformat()
+
+    filename = f"attendance_report_{report_date}.csv"
+
+    # 4. Stream CSV generation using Python's built-in csv and io.StringIO
+    def generate():
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # Header row: USN, Name, Total Classes, Attended Classes, Percentage, Status (Eligible / Shortage)
+        writer.writerow([
+            "USN",
+            "Name",
+            "Total Classes",
+            "Attended Classes",
+            "Percentage",
+            "Status (Eligible / Shortage)",
+        ])
+        yield output.getvalue()
+        output.seek(0)
+        output.truncate(0)
+
+        # Data rows
+        for item in summaries:
+            status_label = "Shortage" if item.get("is_shortage") else "Eligible"
+            percentage_val = f"{item.get('attendance_percentage', 0.0)}%"
+            writer.writerow([
+                item.get("usn", ""),
+                item.get("name", ""),
+                item.get("total_classes_held", 0),
+                item.get("classes_attended", 0),
+                percentage_val,
+                status_label,
+            ])
+            yield output.getvalue()
+            output.seek(0)
+            output.truncate(0)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename={filename}",
+            "Content-Type": "text/csv; charset=utf-8",
+        },
     )
